@@ -1,0 +1,527 @@
+<title>Delhi AQI Dashboard</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+  :root{
+    --paper:#F7F4EC;
+    --surface:#FFFFFF;
+    --ink:#161C1B;
+    --muted:#6B6558;
+    --faint:#96907F;
+    --line:#DED7C6;
+    --signal:#D95D2B;
+    --teal:#1C5F5A;
+    --teal-tint:#E4EEEC;
+    --shadow: 0 1px 2px rgba(22,28,27,0.05), 0 8px 22px rgba(22,28,27,0.06);
+
+    --c-pm25:#2a78d6;
+    --c-pm10:#eb6834;
+    --c-no2:#1baf7a;
+    --c-so2:#eda100;
+    --c-co:#e87ba4;
+    --c-ozone:#008300;
+
+    --sev-good:#2E9E4C;
+    --sev-satisfactory:#8FB93C;
+    --sev-moderate:#EDA100;
+    --sev-poor:#D95D2B;
+    --sev-verypoor:#C1402E;
+    --sev-severe:#7A2048;
+
+    --neg:#C1402E;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --paper:#121612;
+      --surface:#181E1B;
+      --ink:#EFEAE0;
+      --muted:#A29C8C;
+      --faint:#726C5E;
+      --line:#2B322D;
+      --signal:#F0784A;
+      --teal:#5FB5AC;
+      --teal-tint:#1B2A27;
+      --shadow: 0 1px 2px rgba(0,0,0,0.35), 0 8px 28px rgba(0,0,0,0.4);
+
+      --c-pm25:#3987e5;
+      --c-pm10:#d95926;
+      --c-no2:#199e70;
+      --c-so2:#c98500;
+      --c-co:#d55181;
+      --c-ozone:#1f9c1f;
+
+      --sev-good:#3CB760;
+      --sev-satisfactory:#A7CE55;
+      --sev-moderate:#EDB233;
+      --sev-poor:#E67A45;
+      --sev-verypoor:#D9604C;
+      --sev-severe:#B0577F;
+
+      --neg:#E67A6B;
+    }
+  }
+  :root[data-theme="dark"]{
+    --paper:#121612; --surface:#181E1B; --ink:#EFEAE0; --muted:#A29C8C; --faint:#726C5E; --line:#2B322D;
+    --signal:#F0784A; --teal:#5FB5AC; --teal-tint:#1B2A27;
+    --shadow: 0 1px 2px rgba(0,0,0,0.35), 0 8px 28px rgba(0,0,0,0.4);
+    --c-pm25:#3987e5; --c-pm10:#d95926; --c-no2:#199e70; --c-so2:#c98500; --c-co:#d55181; --c-ozone:#1f9c1f;
+    --sev-good:#3CB760; --sev-satisfactory:#A7CE55; --sev-moderate:#EDB233; --sev-poor:#E67A45; --sev-verypoor:#D9604C; --sev-severe:#B0577F;
+    --neg:#E67A6B;
+  }
+
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--paper); color:var(--ink);
+    font-family:'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  @media (prefers-reduced-motion: reduce){ *{animation:none !important; transition:none !important;} }
+
+  .wrap{max-width:1080px; margin:0 auto; padding:0 26px;}
+  h1,h2{font-family:'Fraunces',Georgia,serif; letter-spacing:-0.01em; text-wrap:balance; margin:0;}
+  .mono{font-family:'IBM Plex Mono', ui-monospace, monospace;}
+  a{color:inherit;}
+  .tabular{font-variant-numeric:tabular-nums;}
+
+  header{padding:36px 0 26px; border-bottom:1px solid var(--line);}
+  .crumb{display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--muted); margin-bottom:18px;}
+  .crumb a{text-decoration:none; color:var(--teal); font-weight:600;}
+  .crumb a:hover{text-decoration:underline;}
+  .head-row{display:flex; justify-content:space-between; align-items:flex-end; gap:20px; flex-wrap:wrap;}
+  h1{font-size:clamp(28px,4vw,38px); font-weight:600;}
+  .head-sub{color:var(--muted); font-size:14px; margin-top:8px; max-width:56ch; line-height:1.55;}
+  .head-meta{display:flex; gap:16px; flex-wrap:wrap;}
+  .meta-pill{
+    font-family:'IBM Plex Mono',monospace; font-size:11.5px; color:var(--muted);
+    border:1px solid var(--line); border-radius:100px; padding:6px 13px; white-space:nowrap;
+  }
+  .theme-btn{
+    border:1px solid var(--line); background:var(--surface); color:var(--muted);
+    width:32px;height:32px;border-radius:8px; font-size:14px; cursor:pointer;
+  }
+
+  .tiles{display:grid; grid-template-columns:repeat(5,1fr); gap:1px; background:var(--line); border:1px solid var(--line); border-radius:14px; overflow:hidden; margin:26px 0 0;}
+  @media (max-width:860px){ .tiles{grid-template-columns:repeat(2,1fr);} }
+  .tile{background:var(--surface); padding:18px 16px;}
+  .tile .num{font-family:'Fraunces',serif; font-weight:600; font-size:26px; color:var(--signal);}
+  .tile .label{font-size:11.5px; color:var(--muted); margin-top:4px; line-height:1.4;}
+
+  section{padding:44px 0;}
+  section + section{border-top:1px solid var(--line);}
+  .section-head{display:flex; justify-content:space-between; align-items:baseline; gap:16px; flex-wrap:wrap; margin-bottom:6px;}
+  .section-head h2{font-size:21px; font-weight:600;}
+  .section-note{font-size:13px; color:var(--muted); max-width:60ch; line-height:1.6; margin:6px 0 22px;}
+
+  .panel{background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:24px; box-shadow:var(--shadow);}
+
+  .chiprow{display:flex; gap:8px; flex-wrap:wrap; margin-bottom:18px;}
+  .chip-btn{
+    font-family:'IBM Plex Mono',monospace; font-size:12px; border:1px solid var(--line); background:var(--surface);
+    color:var(--muted); padding:7px 13px; border-radius:100px; cursor:pointer; transition:all .15s;
+  }
+  .chip-btn:hover{color:var(--ink);}
+  .chip-btn.active{background:var(--teal); border-color:var(--teal); color:#fff;}
+
+  .chart-shell{position:relative; width:100%;}
+  svg{display:block; width:100%; height:auto; overflow:visible;}
+  .gridline{stroke:var(--line); stroke-width:1;}
+  .axislabel{fill:var(--faint); font-family:'IBM Plex Mono',monospace; font-size:10.5px;}
+  .line-path{fill:none; stroke:var(--teal); stroke-width:2; stroke-linecap:round; stroke-linejoin:round;}
+  .area-path{fill:var(--teal); opacity:0.10;}
+  .hover-dot{fill:var(--surface); stroke:var(--signal); stroke-width:2.5;}
+  .crosshair{stroke:var(--faint); stroke-width:1; stroke-dasharray:3 3;}
+  .tooltip{
+    position:absolute; pointer-events:none; background:var(--ink); color:var(--paper);
+    font-family:'IBM Plex Mono',monospace; font-size:12px; padding:8px 11px; border-radius:8px;
+    transform:translate(-50%,-115%); white-space:nowrap; opacity:0; transition:opacity .1s; z-index:5;
+    box-shadow:0 6px 18px rgba(0,0,0,.25);
+  }
+  .tooltip b{color:var(--signal);}
+  .legend{display:flex; gap:16px; flex-wrap:wrap; margin-top:16px; font-size:12px; color:var(--muted);}
+  .legend-item{display:flex; align-items:center; gap:6px;}
+  .swatch{width:11px; height:11px; border-radius:3px; display:inline-block;}
+
+  .cols2{display:grid; grid-template-columns:1.3fr 1fr; gap:18px;}
+  @media (max-width:860px){ .cols2{grid-template-columns:1fr;} }
+
+  .sev-bar{display:flex; width:100%; height:34px; border-radius:8px; overflow:hidden; border:1px solid var(--line);}
+  .sev-seg{height:100%; position:relative; cursor:default;}
+  .sev-legend{display:flex; flex-direction:column; gap:9px; margin-top:18px;}
+  .sev-row{display:flex; align-items:center; gap:10px; font-size:13px;}
+  .sev-row .sw{width:12px; height:12px; border-radius:3px; flex-shrink:0;}
+  .sev-row .name{width:110px; color:var(--ink); font-weight:500;}
+  .sev-row .count{color:var(--muted); font-size:12px; margin-left:auto;}
+  .sev-row .pct{font-family:'IBM Plex Mono',monospace; font-weight:600; color:var(--ink); width:52px; text-align:right;}
+
+  .corr-row{display:grid; grid-template-columns:70px 1fr 56px; align-items:center; gap:10px; margin-bottom:12px; font-size:13px;}
+  .corr-row:last-child{margin-bottom:0;}
+  .corr-label{font-weight:600; color:var(--ink);}
+  .corr-track{position:relative; height:16px; background:var(--teal-tint); border-radius:5px; overflow:hidden;}
+  .corr-fill{position:absolute; top:0; bottom:0; border-radius:5px;}
+  .corr-val{font-family:'IBM Plex Mono',monospace; text-align:right; color:var(--muted);}
+
+  .box-row{display:grid; grid-template-columns:80px 1fr 130px; align-items:center; gap:12px; margin-bottom:20px;}
+  .box-row:last-child{margin-bottom:0;}
+  .box-label{font-weight:600; font-size:13px;}
+  .box-track{position:relative; height:26px;}
+  .box-whisker{position:absolute; top:50%; height:1px; background:var(--faint);}
+  .box-body{position:absolute; top:4px; bottom:4px; border-radius:5px; background:var(--teal); opacity:.85;}
+  .box-median{position:absolute; top:0; bottom:0; width:2px; background:var(--ink);}
+  .box-cap{position:absolute; top:8px; bottom:8px; width:1px; background:var(--faint);}
+  .box-readout{font-family:'IBM Plex Mono',monospace; font-size:11.5px; color:var(--muted); text-align:right;}
+
+  table{width:100%; border-collapse:collapse; font-size:13.5px;}
+  th{text-align:left; font-family:'IBM Plex Mono',monospace; font-size:10.5px; letter-spacing:.06em; text-transform:uppercase; color:var(--faint); font-weight:500; padding:0 10px 10px; border-bottom:1px solid var(--line);}
+  th.num, td.num{text-align:right;}
+  td{padding:12px 10px; border-bottom:1px solid var(--line); vertical-align:middle;}
+  tr:last-child td{border-bottom:none;}
+  .pname{display:flex; align-items:center; gap:9px; font-weight:600;}
+  .dot{width:10px; height:10px; border-radius:50%; flex-shrink:0;}
+  .tag{font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--muted);}
+
+  .callouts{display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:18px;}
+  @media (max-width:600px){ .callouts{grid-template-columns:1fr;} }
+  .callout{background:var(--teal-tint); border-radius:10px; padding:14px 16px; font-size:13px; line-height:1.55; color:var(--ink);}
+  .callout b{color:var(--teal);}
+
+  footer{padding:40px 0 60px;}
+  .fine-print{text-align:center; font-size:12px; color:var(--muted); font-family:'IBM Plex Mono',monospace;}
+  .fine-print a{color:var(--teal); text-decoration:none; font-weight:600;}
+</style>
+
+<header>
+  <div class="wrap">
+    <div class="crumb">
+      <a href="https://priyanshi-portfolio-mauve-theta.vercel.app/" id="backLink">← Priyanshi Bhatt</a><span>/</span><span>Projects</span><span>/</span><span>Delhi AQI Analysis</span>
+    </div>
+    <div class="head-row">
+      <div>
+        <h1>Delhi Air Quality Index, 2021–2024</h1>
+        <p class="head-sub">Four years of daily AQI readings across six pollutants — cleaned, feature-engineered, and explored for seasonal and long-term pollution trends.</p>
+      </div>
+      <div style="display:flex; align-items:center; gap:10px;">
+        <div class="head-meta">
+          <span class="meta-pill">1,461 days</span>
+          <span class="meta-pill">0 missing values</span>
+        </div>
+        <button class="theme-btn" id="themeToggle" title="Toggle theme" aria-label="Toggle color theme">◐</button>
+      </div>
+    </div>
+
+    <div class="tiles">
+      <div class="tile"><div class="num tabular">202.2</div><div class="label">mean AQI across all 1,461 days</div></div>
+      <div class="tile"><div class="num tabular">46.5%</div><div class="label">of days rated Poor or worse</div></div>
+      <div class="tile"><div class="num tabular">500</div><div class="label">worst reading — 7 Jan 2023</div></div>
+      <div class="tile"><div class="num tabular">19</div><div class="label">best reading — 10 Oct 2022</div></div>
+      <div class="tile"><div class="num tabular">0.90</div><div class="label">PM10's correlation with AQI, strongest of six</div></div>
+    </div>
+  </div>
+</header>
+
+<section id="trend">
+  <div class="wrap">
+    <div class="section-head"><h2>AQI trend, month by month</h2></div>
+    <p class="section-note">Monthly average AQI from January 2021 through December 2024. Winters spike sharply every year; monsoon months (Jun–Sep) bring the clearest air. Hover the line for exact values, or isolate a single year below.</p>
+    <div class="panel">
+      <div class="chiprow" id="yearChips">
+        <button class="chip-btn active" data-year="all">All years</button>
+        <button class="chip-btn" data-year="2021">2021</button>
+        <button class="chip-btn" data-year="2022">2022</button>
+        <button class="chip-btn" data-year="2023">2023</button>
+        <button class="chip-btn" data-year="2024">2024</button>
+      </div>
+      <div class="chart-shell" id="lineChartShell">
+        <svg id="lineChart" viewBox="0 0 960 300" preserveAspectRatio="none" role="img" aria-label="Monthly average AQI, 2021 to 2024"></svg>
+        <div class="tooltip" id="lineTooltip"></div>
+      </div>
+      <div class="legend">
+        <div class="legend-item"><span class="swatch" style="background:var(--teal)"></span> Monthly average AQI</div>
+        <div class="legend-item" style="color:var(--faint)">Shaded bands mark each calendar year</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="breakdown">
+  <div class="wrap">
+    <div class="section-head"><h2>How polluted, how often</h2></div>
+    <p class="section-note">Every day classified against India's CPCB AQI bands. Only 1 in 28 days qualified as "Good" — nearly half fell in Poor, Very Poor, or Severe territory.</p>
+    <div class="cols2">
+      <div class="panel">
+        <div class="sev-bar" id="sevBar"></div>
+        <div class="sev-legend" id="sevLegend"></div>
+      </div>
+      <div class="panel">
+        <div class="section-note" style="margin:0 0 14px;">PM10 and PM2.5 track AQI closest — Ozone is the only pollutant that moves the <i>opposite</i> way, easing as the others spike.</div>
+        <div id="corrChart"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="seasonal">
+  <div class="wrap">
+    <div class="section-head"><h2>Seasonal spread</h2></div>
+    <p class="section-note">Range of daily AQI by season (min · 25th percentile · median · 75th percentile · max). Winter and Autumn run consistently worse and wider; Monsoon is Delhi's reprieve.</p>
+    <div class="panel" id="seasonBox"></div>
+  </div>
+</section>
+
+<section id="pollutants">
+  <div class="wrap">
+    <div class="section-head"><h2>Pollutant concentrations</h2></div>
+    <p class="section-note">Average and peak readings over the full period, in each pollutant's native unit — concentrations aren't comparable across gases, so this is a table rather than one shared bar scale.</p>
+    <div class="panel">
+      <table id="pollutantTable">
+        <thead>
+          <tr><th>Pollutant</th><th class="num">Avg</th><th class="num">Peak</th><th class="num">r with AQI</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+      <div class="callouts">
+        <div class="callout"><b>Feature engineering —</b> season, AQI category, weekend flag, and a 6-pollutant average were derived to support the trend analysis above.</div>
+        <div class="callout"><b>Data quality —</b> 1,461 consecutive daily records, Jan 2021–Dec 2024, with zero missing values across all six pollutants.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="fine-print">Built from the <a href="https://github.com/Priyanshi0029/delhi-aqi-analysis-2021-2024v2" target="_blank" rel="noopener">delhi-aqi-analysis-2021-2024v2</a> dataset · Python, Pandas, HTML &amp; SVG</div>
+  </div>
+</footer>
+
+<script>
+const DATA = {"records": 1461, "start_date": "2021-01-01", "end_date": "2024-12-31", "aqi_mean": 202.2, "aqi_median": 189.0, "aqi_min": 19, "aqi_max": 500, "worst_day": {"date": "2023-01-07", "aqi": 500}, "best_day": {"date": "2022-10-10", "aqi": 19}, "categories": [{"name": "Good", "count": 51, "pct": 3.5}, {"name": "Satisfactory", "count": 267, "pct": 18.3}, {"name": "Moderate", "count": 463, "pct": 31.7}, {"name": "Poor", "count": 384, "pct": 26.3}, {"name": "Very Poor", "count": 231, "pct": 15.8}, {"name": "Severe", "count": 65, "pct": 4.4}], "monthly": [{"year": 2021, "month": 1, "aqi": 347.8}, {"year": 2021, "month": 2, "aqi": 328.6}, {"year": 2021, "month": 3, "aqi": 249.8}, {"year": 2021, "month": 4, "aqi": 215.8}, {"year": 2021, "month": 5, "aqi": 135.2}, {"year": 2021, "month": 6, "aqi": 141.3}, {"year": 2021, "month": 7, "aqi": 112.0}, {"year": 2021, "month": 8, "aqi": 105.4}, {"year": 2021, "month": 9, "aqi": 69.8}, {"year": 2021, "month": 10, "aqi": 159.9}, {"year": 2021, "month": 11, "aqi": 372.7}, {"year": 2021, "month": 12, "aqi": 360.4}, {"year": 2022, "month": 1, "aqi": 286.5}, {"year": 2022, "month": 2, "aqi": 229.0}, {"year": 2022, "month": 3, "aqi": 218.7}, {"year": 2022, "month": 4, "aqi": 287.7}, {"year": 2022, "month": 5, "aqi": 251.1}, {"year": 2022, "month": 6, "aqi": 203.0}, {"year": 2022, "month": 7, "aqi": 85.0}, {"year": 2022, "month": 8, "aqi": 84.1}, {"year": 2022, "month": 9, "aqi": 89.8}, {"year": 2022, "month": 10, "aqi": 189.6}, {"year": 2022, "month": 11, "aqi": 310.2}, {"year": 2022, "month": 12, "aqi": 271.6}, {"year": 2023, "month": 1, "aqi": 295.5}, {"year": 2023, "month": 2, "aqi": 208.5}, {"year": 2023, "month": 3, "aqi": 164.1}, {"year": 2023, "month": 4, "aqi": 188.1}, {"year": 2023, "month": 5, "aqi": 174.2}, {"year": 2023, "month": 6, "aqi": 119.4}, {"year": 2023, "month": 7, "aqi": 78.5}, {"year": 2023, "month": 8, "aqi": 110.3}, {"year": 2023, "month": 9, "aqi": 95.1}, {"year": 2023, "month": 10, "aqi": 210.0}, {"year": 2023, "month": 11, "aqi": 334.6}, {"year": 2023, "month": 12, "aqi": 291.7}, {"year": 2024, "month": 1, "aqi": 293.0}, {"year": 2024, "month": 2, "aqi": 194.5}, {"year": 2024, "month": 3, "aqi": 168.0}, {"year": 2024, "month": 4, "aqi": 197.8}, {"year": 2024, "month": 5, "aqi": 238.4}, {"year": 2024, "month": 6, "aqi": 192.2}, {"year": 2024, "month": 7, "aqi": 85.9}, {"year": 2024, "month": 8, "aqi": 59.4}, {"year": 2024, "month": 9, "aqi": 94.5}, {"year": 2024, "month": 10, "aqi": 207.1}, {"year": 2024, "month": 11, "aqi": 351.0}, {"year": 2024, "month": 12, "aqi": 265.3}], "yearly": [{"year": 2021, "aqi": 215.8}, {"year": 2022, "aqi": 208.5}, {"year": 2023, "aqi": 189.1}, {"year": 2024, "aqi": 195.5}], "seasons": [{"name": "Winter", "min": 41.0, "q1": 219.0, "median": 285.0, "q3": 345.0, "max": 500.0}, {"name": "Summer", "min": 48.0, "q1": 156.2, "median": 206.5, "q3": 257.2, "max": 413.0}, {"name": "Monsoon", "min": 24.0, "q1": 66.0, "median": 93.0, "q3": 131.2, "max": 353.0}, {"name": "Autumn", "min": 19.0, "q1": 171.0, "median": 275.0, "q3": 368.0, "max": 489.0}], "correlations": [{"name": "PM2.5", "r": 0.802}, {"name": "PM10", "r": 0.899}, {"name": "NO2", "r": 0.319}, {"name": "SO2", "r": 0.036}, {"name": "CO", "r": 0.697}, {"name": "Ozone", "r": -0.164}], "pollutant_avg": [{"name": "PM2.5", "mean": 90.77, "max": 1000.0}, {"name": "PM10", "mean": 218.22, "max": 1000.0}, {"name": "NO2", "mean": 37.18, "max": 433.98}, {"name": "SO2", "mean": 20.1, "max": 113.4}, {"name": "CO", "mean": 1.03, "max": 4.7}, {"name": "Ozone", "mean": 36.34, "max": 115.87}]};
+
+(function(){
+  var root = document.documentElement;
+  var btn = document.getElementById('themeToggle');
+  try { var saved = localStorage.getItem('aqi-theme'); if(saved) root.setAttribute('data-theme', saved); } catch(e){}
+  function current(){
+    var attr = root.getAttribute('data-theme');
+    if(attr) return attr;
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  }
+  btn.addEventListener('click', function(){
+    var next = current() === 'dark' ? 'light' : 'dark';
+    root.setAttribute('data-theme', next);
+    try { localStorage.setItem('aqi-theme', next); } catch(e){}
+  });
+})();
+
+function cssVar(name){ return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+const MONTH_ABBR = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+const svgNS = 'http://www.w3.org/2000/svg';
+const chartW = 960, chartH = 300;
+const padL = 34, padR = 10, padT = 14, padB = 26;
+const plotW = chartW - padL - padR, plotH = chartH - padT - padB;
+
+function buildLineChart(filterYear){
+  const svg = document.getElementById('lineChart');
+  svg.innerHTML = '';
+  const pts = DATA.monthly;
+  const maxY = 420, minY = 0;
+  const n = pts.length;
+  const x = i => padL + (i/(n-1))*plotW;
+  const y = v => padT + plotH - ((v-minY)/(maxY-minY))*plotH;
+
+  [0,100,200,300,400].forEach(function(v){
+    const ly = y(v);
+    const line = document.createElementNS(svgNS,'line');
+    line.setAttribute('x1', padL); line.setAttribute('x2', chartW-padR);
+    line.setAttribute('y1', ly); line.setAttribute('y2', ly);
+    line.setAttribute('class','gridline');
+    svg.appendChild(line);
+    const t = document.createElementNS(svgNS,'text');
+    t.setAttribute('x', padL-8); t.setAttribute('y', ly+3);
+    t.setAttribute('text-anchor','end'); t.setAttribute('class','axislabel');
+    t.textContent = v;
+    svg.appendChild(t);
+  });
+
+  const years = [2021,2022,2023,2024];
+  years.forEach(function(yr, idx){
+    if(idx % 2 === 1) return;
+    const first = pts.findIndex(p=>p.year===yr);
+    const last = (idx+1<years.length) ? pts.findIndex(p=>p.year===years[idx+1]) : n;
+    const rect = document.createElementNS(svgNS,'rect');
+    rect.setAttribute('x', x(first)); rect.setAttribute('y', padT);
+    rect.setAttribute('width', x(last===n? n-1 : last) - x(first));
+    rect.setAttribute('height', plotH);
+    rect.setAttribute('fill', cssVar('--line'));
+    rect.setAttribute('opacity','0.35');
+    svg.appendChild(rect);
+  });
+
+  years.forEach(function(yr){
+    const idx = pts.findIndex(p=>p.year===yr && p.month===1);
+    const t = document.createElementNS(svgNS,'text');
+    t.setAttribute('x', x(idx)); t.setAttribute('y', chartH-6);
+    t.setAttribute('text-anchor','start'); t.setAttribute('class','axislabel');
+    t.textContent = yr;
+    svg.appendChild(t);
+  });
+
+  let d = 'M ' + x(0) + ' ' + y(pts[0].aqi);
+  for(let i=1;i<n;i++) d += ' L ' + x(i) + ' ' + y(pts[i].aqi);
+  const areaD = d + ' L ' + x(n-1) + ' ' + y(0) + ' L ' + x(0) + ' ' + y(0) + ' Z';
+
+  const area = document.createElementNS(svgNS,'path');
+  area.setAttribute('d', areaD); area.setAttribute('class','area-path');
+  svg.appendChild(area);
+
+  const path = document.createElementNS(svgNS,'path');
+  path.setAttribute('d', d); path.setAttribute('class','line-path');
+  svg.appendChild(path);
+
+  if(filterYear !== 'all'){
+    const yrNum = parseInt(filterYear,10);
+    const first = pts.findIndex(p=>p.year===yrNum);
+    const lastIdx = pts.map((p,i)=>p.year===yrNum?i:-1).filter(i=>i>=0).pop();
+    const dim = document.createElementNS(svgNS,'rect');
+    dim.setAttribute('x', padL); dim.setAttribute('y', padT);
+    dim.setAttribute('width', x(first)-padL); dim.setAttribute('height', plotH);
+    dim.setAttribute('fill', cssVar('--paper')); dim.setAttribute('opacity','0.72');
+    svg.appendChild(dim);
+    const dim2 = document.createElementNS(svgNS,'rect');
+    dim2.setAttribute('x', x(lastIdx)); dim2.setAttribute('y', padT);
+    dim2.setAttribute('width', (chartW-padR)-x(lastIdx)); dim2.setAttribute('height', plotH);
+    dim2.setAttribute('fill', cssVar('--paper')); dim2.setAttribute('opacity','0.72');
+    svg.appendChild(dim2);
+  }
+
+  const hoverLine = document.createElementNS(svgNS,'line');
+  hoverLine.setAttribute('class','crosshair'); hoverLine.setAttribute('y1', padT); hoverLine.setAttribute('y2', padT+plotH);
+  hoverLine.style.display='none';
+  svg.appendChild(hoverLine);
+  const hoverDot = document.createElementNS(svgNS,'circle');
+  hoverDot.setAttribute('r','4.5'); hoverDot.setAttribute('class','hover-dot');
+  hoverDot.style.display='none';
+  svg.appendChild(hoverDot);
+
+  const overlay = document.createElementNS(svgNS,'rect');
+  overlay.setAttribute('x', padL); overlay.setAttribute('y', padT);
+  overlay.setAttribute('width', plotW); overlay.setAttribute('height', plotH);
+  overlay.setAttribute('fill','transparent'); overlay.style.cursor='crosshair';
+  svg.appendChild(overlay);
+
+  const tooltip = document.getElementById('lineTooltip');
+  const shell = document.getElementById('lineChartShell');
+
+  overlay.addEventListener('mousemove', function(evt){
+    const rect = svg.getBoundingClientRect();
+    const relX = (evt.clientX - rect.left) / rect.width * chartW;
+    let i = Math.round((relX - padL) / plotW * (n-1));
+    i = Math.max(0, Math.min(n-1, i));
+    const p = pts[i];
+    hoverLine.setAttribute('x1', x(i)); hoverLine.setAttribute('x2', x(i));
+    hoverLine.style.display='block';
+    hoverDot.setAttribute('cx', x(i)); hoverDot.setAttribute('cy', y(p.aqi));
+    hoverDot.style.display='block';
+    const shellRect = shell.getBoundingClientRect();
+    const px = (x(i)/chartW) * shellRect.width;
+    const py = (y(p.aqi)/chartH) * shellRect.height;
+    tooltip.style.left = px + 'px';
+    tooltip.style.top = py + 'px';
+    tooltip.innerHTML = MONTH_ABBR[p.month-1] + ' ' + p.year + ' &nbsp; <b>' + p.aqi + '</b> AQI';
+    tooltip.style.opacity = '1';
+  });
+  overlay.addEventListener('mouseleave', function(){
+    hoverLine.style.display='none'; hoverDot.style.display='none'; tooltip.style.opacity='0';
+  });
+}
+buildLineChart('all');
+
+document.getElementById('yearChips').addEventListener('click', function(e){
+  const btn = e.target.closest('.chip-btn');
+  if(!btn) return;
+  this.querySelectorAll('.chip-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  buildLineChart(btn.dataset.year);
+});
+
+(function(){
+  const sevColors = {
+    'Good':'--sev-good','Satisfactory':'--sev-satisfactory','Moderate':'--sev-moderate',
+    'Poor':'--sev-poor','Very Poor':'--sev-verypoor','Severe':'--sev-severe'
+  };
+  const bar = document.getElementById('sevBar');
+  const legend = document.getElementById('sevLegend');
+  DATA.categories.forEach(function(c){
+    const seg = document.createElement('div');
+    seg.className = 'sev-seg';
+    seg.style.width = c.pct + '%';
+    seg.style.background = 'var(' + sevColors[c.name] + ')';
+    seg.title = c.name + ': ' + c.count + ' days (' + c.pct + '%)';
+    bar.appendChild(seg);
+
+    const row = document.createElement('div');
+    row.className = 'sev-row';
+    row.innerHTML = '<span class="sw" style="background:var(' + sevColors[c.name] + ')"></span>' +
+      '<span class="name">' + c.name + '</span>' +
+      '<span class="count">' + c.count + ' days</span>' +
+      '<span class="pct tabular">' + c.pct + '%</span>';
+    legend.appendChild(row);
+  });
+})();
+
+(function(){
+  const colorMap = {'PM2.5':'--c-pm25','PM10':'--c-pm10','NO2':'--c-no2','SO2':'--c-so2','CO':'--c-co','Ozone':'--c-ozone'};
+  const wrap = document.getElementById('corrChart');
+  const sorted = [...DATA.correlations].sort((a,b)=>Math.abs(b.r)-Math.abs(a.r));
+  const maxAbs = Math.max(...sorted.map(d=>Math.abs(d.r)));
+  sorted.forEach(function(d){
+    const row = document.createElement('div');
+    row.className = 'corr-row';
+    const widthPct = (Math.abs(d.r)/maxAbs*100).toFixed(1);
+    const color = d.r < 0 ? 'var(--neg)' : 'var(' + colorMap[d.name] + ')';
+    row.innerHTML =
+      '<div class="corr-label">' + d.name + '</div>' +
+      '<div class="corr-track"><div class="corr-fill" style="width:' + widthPct + '%; background:' + color + ';"></div></div>' +
+      '<div class="corr-val tabular">' + (d.r>=0?'+':'') + d.r.toFixed(2) + '</div>';
+    wrap.appendChild(row);
+  });
+})();
+
+(function(){
+  const wrap = document.getElementById('seasonBox');
+  const globalMax = 500;
+  DATA.seasons.forEach(function(s){
+    const row = document.createElement('div');
+    row.className = 'box-row';
+    const pct = v => (v/globalMax*100).toFixed(1)+'%';
+    row.innerHTML =
+      '<div class="box-label">' + s.name + '</div>' +
+      '<div class="box-track">' +
+        '<div class="box-whisker" style="left:' + pct(s.min) + '; width:' + pct(s.max-s.min) + ';"></div>' +
+        '<div class="box-cap" style="left:' + pct(s.min) + ';"></div>' +
+        '<div class="box-cap" style="left:' + pct(s.max) + ';"></div>' +
+        '<div class="box-body" style="left:' + pct(s.q1) + '; width:' + pct(s.q3-s.q1) + ';"></div>' +
+        '<div class="box-median" style="left:' + pct(s.median) + ';"></div>' +
+      '</div>' +
+      '<div class="box-readout tabular">med ' + s.median.toFixed(0) + ' &nbsp;(' + s.min.toFixed(0) + '–' + s.max.toFixed(0) + ')</div>';
+    wrap.appendChild(row);
+  });
+})();
+
+(function(){
+  const colorMap = {'PM2.5':'--c-pm25','PM10':'--c-pm10','NO2':'--c-no2','SO2':'--c-so2','CO':'--c-co','Ozone':'--c-ozone'};
+  const unitMap = {'PM2.5':'µg/m³','PM10':'µg/m³','NO2':'µg/m³','SO2':'µg/m³','CO':'mg/m³','Ozone':'µg/m³'};
+  const corrMap = {}; DATA.correlations.forEach(c=>corrMap[c.name]=c.r);
+  const tbody = document.querySelector('#pollutantTable tbody');
+  const sorted = [...DATA.pollutant_avg].sort((a,b)=>Math.abs(corrMap[b.name])-Math.abs(corrMap[a.name]));
+  sorted.forEach(function(p){
+    const tr = document.createElement('tr');
+    const r = corrMap[p.name];
+    tr.innerHTML =
+      '<td><div class="pname"><span class="dot" style="background:var(' + colorMap[p.name] + ')"></span>' + p.name + '</div></td>' +
+      '<td class="num tabular">' + p.mean.toFixed(2) + ' <span class="tag">' + unitMap[p.name] + '</span></td>' +
+      '<td class="num tabular">' + p.max.toFixed(1) + '</td>' +
+      '<td class="num tabular">' + (r>=0?'+':'') + r.toFixed(3) + '</td>';
+    tbody.appendChild(tr);
+  });
+})();
+</script>
